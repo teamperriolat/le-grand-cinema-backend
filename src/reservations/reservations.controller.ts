@@ -45,4 +45,9 @@ export class ReservationsController {
   @Get(':id/ticket') ticket(@Req() req: { user: JwtPayload }, @Param('id') id: string) {
     return this.service.ticket(req.user.sub, id);
   }
+  @Post(':id/payment')
+  @ApiOperation({ summary: 'Simuler le paiement sécurisé de la réservation' })
+  payment(@Req() req: { user: JwtPayload }, @Param('id') id: string) {
+    return this.service.pay(req.user.sub, id);
+  }
 }

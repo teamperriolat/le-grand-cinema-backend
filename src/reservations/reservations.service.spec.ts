@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import { PaymentStatus, ReservationStatus } from '@prisma/client';
 import { ReservationsService } from './reservations.service';
 
 describe('ReservationsService', () => {
@@ -7,6 +8,8 @@ describe('ReservationsService', () => {
     seat: { findMany: jest.fn() },
     reservationSeat: { count: jest.fn() },
     reservation: { create: jest.fn() },
+    payment: { update: jest.fn() },
+    ticket: { update: jest.fn() },
   };
   const prisma = {
     $transaction: jest.fn((callback: (client: typeof tx) => unknown): Promise<unknown> =>
@@ -104,7 +107,11 @@ describe('ReservationsService', () => {
   });
 
   it('retourne le billet numérique du propriétaire', async () => {
-    prisma.reservation.findFirst.mockResolvedValue({ id: 'reservation-1', ticketCode: 'ticket-1' });
+    prisma.reservation.findFirst.mockResolvedValue({
+      id: 'reservation-1',
+      ticket: { code: 'ticket-1', status: 'ACTIVE' },
+      payment: { status: 'PAID' },
+    });
     await expect(service.ticket('user-1', 'reservation-1')).resolves.toEqual(
       expect.objectContaining({ ticketCode: 'ticket-1' }),
     );
@@ -113,5 +120,34 @@ describe('ReservationsService', () => {
   it('refuse un billet absent ou appartenant à un autre utilisateur', async () => {
     prisma.reservation.findFirst.mockResolvedValue(null);
     await expect(service.ticket('user-1', 'missing')).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('paie une réservation et active son billet', async () => {
+    prisma.reservation.findFirst.mockResolvedValue({
+      id: 'reservation-1',
+      status: ReservationStatus.CONFIRMED,
+      payment: { status: PaymentStatus.PENDING },
+    });
+    tx.payment.update.mockResolvedValue({
+      reservationId: 'reservation-1',
+      status: PaymentStatus.PAID,
+    });
+
+    await expect(service.pay('user-1', 'reservation-1')).resolves.toEqual(
+      expect.objectContaining({ status: PaymentStatus.PAID }),
+    );
+    expect(tx.ticket.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { status: 'ACTIVE' } }),
+    );
+  });
+
+  it('refuse le paiement d’une réservation annulée', async () => {
+    prisma.reservation.findFirst.mockResolvedValue({
+      id: 'reservation-1',
+      status: ReservationStatus.CANCELLED,
+      payment: { status: PaymentStatus.PENDING },
+    });
+
+    await expect(service.pay('user-1', 'reservation-1')).rejects.toBeInstanceOf(ConflictException);
   });
 });
