@@ -31,7 +31,7 @@ describe('Réservation concurrente PostgreSQL', () => {
       data: {
         movieId: movie.id,
         startsAt: new Date(Date.now() + 86400000),
-        room: 'Test',
+        room: { create: { name: `Salle ${suffix}`, capacity: 1 } },
         priceCents: 1000,
         seats: { create: [{ label: 'A1' }] },
       },
@@ -46,6 +46,7 @@ describe('Réservation concurrente PostgreSQL', () => {
     await prisma.reservation.deleteMany();
     await prisma.seat.deleteMany();
     await prisma.screening.deleteMany();
+    await prisma.room.deleteMany();
     await prisma.movie.deleteMany();
     await prisma.user.deleteMany();
     await prisma.$disconnect();
