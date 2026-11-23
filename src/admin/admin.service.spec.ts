@@ -59,6 +59,23 @@ describe('AdminService', () => {
     await expect(service.deleteRoom('room-1')).rejects.toBeInstanceOf(ConflictException);
   });
 
+  it('supprime une salle inutilisée', async () => {
+    prisma.room.findUnique.mockResolvedValue({ id: 'room-1' });
+    prisma.screening.count.mockResolvedValue(0);
+    prisma.room.delete.mockResolvedValue({ id: 'room-1' });
+
+    await expect(service.deleteRoom('room-1')).resolves.toEqual({ id: 'room-1' });
+  });
+
+  it('retourne 404 pour une salle inconnue', async () => {
+    prisma.room.findUnique.mockResolvedValue(null);
+
+    await expect(service.updateRoom('missing', { capacity: 10 })).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    await expect(service.deleteRoom('missing')).rejects.toBeInstanceOf(NotFoundException);
+  });
+
   it('crée un film', async () => {
     const dto = { title: 'Film', description: 'Description', durationMin: 95 };
     prisma.movie.create.mockResolvedValue({ id: 'movie-1', ...dto });

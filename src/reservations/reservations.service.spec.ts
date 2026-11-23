@@ -111,9 +111,13 @@ describe('ReservationsService', () => {
       id: 'reservation-1',
       ticket: { code: 'ticket-1', status: 'ACTIVE' },
       payment: { status: 'PAID' },
+      screening: { id: 'screening-1', room: { name: 'Salle 1' } },
     });
     await expect(service.ticket('user-1', 'reservation-1')).resolves.toEqual(
       expect.objectContaining({ ticketCode: 'ticket-1' }),
+    );
+    await expect(service.ticket('user-1', 'reservation-1')).resolves.toEqual(
+      expect.objectContaining({ screening: expect.objectContaining({ room: 'Salle 1' }) }),
     );
   });
 
@@ -149,5 +153,23 @@ describe('ReservationsService', () => {
     });
 
     await expect(service.pay('user-1', 'reservation-1')).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('refuse le paiement d’une réservation inconnue', async () => {
+    prisma.reservation.findFirst.mockResolvedValue(null);
+
+    await expect(service.pay('user-1', 'missing')).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('retourne directement un paiement déjà effectué', async () => {
+    const payment = { status: PaymentStatus.PAID };
+    prisma.reservation.findFirst.mockResolvedValue({
+      id: 'reservation-1',
+      status: ReservationStatus.CONFIRMED,
+      payment,
+    });
+
+    await expect(service.pay('user-1', 'reservation-1')).resolves.toBe(payment);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 });

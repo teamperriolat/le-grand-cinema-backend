@@ -80,7 +80,7 @@ Troisième bug : deux utilisateurs pouvaient tenter de réserver la même place 
 
 La chaîne d’intégration continue démarre une véritable base PostgreSQL. Elle valide le schéma et les migrations Prisma, exécute le lint ESLint, les tests unitaires, le test d’authentification, le test de concurrence, la couverture et la compilation.
 
-Actuellement, les six suites unitaires représentent 39 tests réussis. La couverture globale atteint 95,33 % des instructions, 96,87 % des lignes, 97,22 % des fonctions et 82,66 % des branches. Toutes les valeurs dépassent donc l’objectif de 80 %.
+Actuellement, les six suites unitaires représentent 43 tests réussis. La couverture globale atteint 98,68 % des instructions, 99,23 % des lignes, 97,22 % des fonctions et 92 % des branches. Toutes les valeurs dépassent donc l’objectif de 80 %.
 
 SonarCloud analyse également le projet et la Quality Gate est attendue par la CI. Une erreur de qualité empêche donc la validation automatique.
 

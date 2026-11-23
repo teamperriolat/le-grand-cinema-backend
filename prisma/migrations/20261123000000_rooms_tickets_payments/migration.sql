@@ -27,7 +27,8 @@ GROUP BY room_counts."room";
 
 ALTER TABLE "Screening" ADD COLUMN "roomId" TEXT;
 UPDATE "Screening"
-SET "roomId" = 'room_' || md5("room");
+SET "roomId" = 'room_' || md5("room")
+WHERE "roomId" IS NULL;
 ALTER TABLE "Screening" ALTER COLUMN "roomId" SET NOT NULL;
 ALTER TABLE "Screening" DROP COLUMN "room";
 ALTER TABLE "Screening"
