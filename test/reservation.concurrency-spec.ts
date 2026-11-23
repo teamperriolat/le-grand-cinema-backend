@@ -27,11 +27,14 @@ describe('Réservation concurrente PostgreSQL', () => {
     const movie = await prisma.movie.create({
       data: { title: `Film ${suffix}`, description: 'Test', durationMin: 90 },
     });
+    const room = await prisma.room.create({
+      data: { name: `Salle ${suffix}`, capacity: 1 },
+    });
     const screening = await prisma.screening.create({
       data: {
         movieId: movie.id,
         startsAt: new Date(Date.now() + 86400000),
-        room: { create: { name: `Salle ${suffix}`, capacity: 1 } },
+        roomId: room.id,
         priceCents: 1000,
         seats: { create: [{ label: 'A1' }] },
       },
