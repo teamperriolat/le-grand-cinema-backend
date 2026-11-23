@@ -18,6 +18,20 @@ enum ReservationStatus {
   USED
 }
 
+enum TicketStatus {
+  PENDING_PAYMENT
+  ACTIVE
+  USED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  REFUSED
+  REFUNDED
+}
+
 model User {
   id           String        @id @default(cuid())
   email        String        @unique
@@ -43,12 +57,22 @@ model Screening {
   movieId       String
   movie         Movie         @relation(fields: [movieId], references: [id], onDelete: Cascade)
   startsAt      DateTime
-  room          String
+  roomId        String
+  room          Room          @relation(fields: [roomId], references: [id], onDelete: Restrict)
   priceCents    Int
   expectedRatio Float         @default(0.6)
   seats         Seat[]
   reservations  Reservation[]
   createdAt     DateTime      @default(now())
+}
+
+model Room {
+  id         String      @id @default(cuid())
+  name       String      @unique
+  capacity   Int
+  screenings Screening[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
 }
 
 model Seat {
@@ -63,7 +87,6 @@ model Seat {
 
 model Reservation {
   id          String            @id @default(cuid())
-  ticketCode  String            @unique @default(cuid())
   userId      String
   user        User              @relation(fields: [userId], references: [id])
   screeningId String
@@ -71,7 +94,30 @@ model Reservation {
   totalCents  Int
   status      ReservationStatus @default(CONFIRMED)
   seats       ReservationSeat[]
+  ticket      Ticket?
+  payment     Payment?
   createdAt   DateTime          @default(now())
+}
+
+model Ticket {
+  id            String       @id @default(cuid())
+  code          String       @unique @default(cuid())
+  reservationId String       @unique
+  reservation   Reservation  @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  status        TicketStatus @default(PENDING_PAYMENT)
+  createdAt     DateTime     @default(now())
+  validatedAt   DateTime?
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  reservationId String        @unique
+  reservation   Reservation   @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  amountCents   Int
+  status        PaymentStatus @default(PENDING)
+  paidAt        DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 }
 
 model ReservationSeat {

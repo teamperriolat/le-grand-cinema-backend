@@ -2,7 +2,9 @@
 
 API minimale de réservation de cinéma avec NestJS, TypeScript, Prisma et PostgreSQL.
 
-Fonctions : JWT (`USER`/`ADMIN`), films et séances, sièges disponibles, réservation atomique, billet numérique, administration, remplissage et prévision simple. Swagger est disponible sur `/docs`.
+Fonctions : JWT (`USER`/`ADMIN`), films et séances, salles persistées, sièges disponibles, réservation atomique, paiement simulé, billet numérique activé après paiement, administration, remplissage et prévision simple. Swagger est disponible sur `/docs`.
+
+Le paiement est volontairement simulé pour la démonstration : `POST /reservations/:id/payment` passe le paiement à `PAID` et active le billet. Aucun numéro de carte n’est demandé ni conservé.
 
 ## Lancer localement
 

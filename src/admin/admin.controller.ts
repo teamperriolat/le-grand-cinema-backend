@@ -28,6 +28,21 @@ export class UpdateMovieDto {
   @ApiProperty({ required: false }) @IsOptional() @IsString() posterUrl?: string;
 }
 
+export class CreateRoomDto {
+  @ApiProperty() @IsString() name: string;
+  @ApiProperty({ minimum: 1, maximum: 200 }) @IsInt() @Min(1) @Max(200) capacity: number;
+}
+
+export class UpdateRoomDto {
+  @ApiProperty({ required: false }) @IsOptional() @IsString() name?: string;
+  @ApiProperty({ required: false, minimum: 1, maximum: 200 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(200)
+  capacity?: number;
+}
+
 export class CreateScreeningDto {
   @ApiProperty() @IsString() movieId: string;
   @ApiProperty() @IsDateString() startsAt: string;
@@ -77,6 +92,18 @@ export class AdminController {
   }
   @Delete('movies/:id') deleteMovie(@Param('id') id: string) {
     return this.admin.deleteMovie(id);
+  }
+  @Get('rooms') rooms() {
+    return this.admin.listRooms();
+  }
+  @Post('rooms') createRoom(@Body() dto: CreateRoomDto) {
+    return this.admin.createRoom(dto);
+  }
+  @Patch('rooms/:id') updateRoom(@Param('id') id: string, @Body() dto: UpdateRoomDto) {
+    return this.admin.updateRoom(id, dto);
+  }
+  @Delete('rooms/:id') deleteRoom(@Param('id') id: string) {
+    return this.admin.deleteRoom(id);
   }
   @Post('screenings') createScreening(@Body() dto: CreateScreeningDto) {
     return this.admin.createScreening(dto);

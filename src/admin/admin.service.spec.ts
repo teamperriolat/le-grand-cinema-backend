@@ -6,6 +6,8 @@ describe('AdminService', () => {
   const tx = {
     reservationSeat: { deleteMany: jest.fn() },
     reservation: { update: jest.fn() },
+    ticket: { update: jest.fn() },
+    payment: { updateMany: jest.fn() },
   };
   const prisma = {
     movie: {
@@ -15,18 +17,64 @@ describe('AdminService', () => {
       update: jest.fn(),
     },
     screening: {
+      count: jest.fn(),
       create: jest.fn(),
       delete: jest.fn(),
       findMany: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
     },
+    room: {
+      create: jest.fn(),
+      delete: jest.fn(),
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
+      upsert: jest.fn(),
+    },
     reservation: { count: jest.fn(), findMany: jest.fn(), findUnique: jest.fn() },
     $transaction: jest.fn((callback: (client: typeof tx) => unknown) => callback(tx)),
   };
   const service = new AdminService(prisma as never);
 
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    prisma.room.upsert.mockResolvedValue({ id: 'room-1', name: 'Salle 1', capacity: 12 });
+  });
+
+  it('administre les salles et protège celles qui sont utilisées', async () => {
+    prisma.room.findMany.mockResolvedValue([{ id: 'room-1', name: 'Salle 1', capacity: 30 }]);
+    prisma.room.create.mockResolvedValue({ id: 'room-2', name: 'Salle 2', capacity: 20 });
+    prisma.room.findUnique.mockResolvedValue({ id: 'room-1' });
+    prisma.room.update.mockResolvedValue({ id: 'room-1', capacity: 40 });
+    prisma.screening.count.mockResolvedValue(1);
+
+    await expect(service.listRooms()).resolves.toHaveLength(1);
+    await expect(service.createRoom({ name: 'Salle 2', capacity: 20 })).resolves.toEqual(
+      expect.objectContaining({ id: 'room-2' }),
+    );
+    await expect(service.updateRoom('room-1', { capacity: 40 })).resolves.toEqual(
+      expect.objectContaining({ capacity: 40 }),
+    );
+    await expect(service.deleteRoom('room-1')).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('supprime une salle inutilisée', async () => {
+    prisma.room.findUnique.mockResolvedValue({ id: 'room-1' });
+    prisma.screening.count.mockResolvedValue(0);
+    prisma.room.delete.mockResolvedValue({ id: 'room-1' });
+
+    await expect(service.deleteRoom('room-1')).resolves.toEqual({ id: 'room-1' });
+  });
+
+  it('retourne 404 pour une salle inconnue', async () => {
+    prisma.room.findUnique.mockResolvedValue(null);
+
+    await expect(service.updateRoom('missing', { capacity: 10 })).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    await expect(service.deleteRoom('missing')).rejects.toBeInstanceOf(NotFoundException);
+  });
 
   it('crée un film', async () => {
     const dto = { title: 'Film', description: 'Description', durationMin: 95 };
@@ -89,6 +137,7 @@ describe('AdminService', () => {
     });
 
     const call = prisma.screening.create.mock.calls[0][0];
+    expect(call.data.roomId).toBe('room-1');
     expect(call.data.expectedRatio).toBe(0.6);
     expect(call.data.seats.create).toHaveLength(12);
     expect(call.data.seats.create[0]).toEqual({ label: 'A1' });
@@ -110,15 +159,22 @@ describe('AdminService', () => {
   });
 
   it('modifie une séance existante', async () => {
-    prisma.screening.findUnique.mockResolvedValue({ id: 'screening-1' });
+    prisma.screening.findUnique.mockResolvedValue({
+      id: 'screening-1',
+      _count: { seats: 12 },
+    });
     prisma.screening.update.mockResolvedValue({ id: 'screening-1', room: 'Salle 2' });
+    prisma.room.upsert.mockResolvedValue({ id: 'room-2', name: 'Salle 2' });
 
     await expect(service.updateScreening('screening-1', { room: 'Salle 2' })).resolves.toEqual({
       id: 'screening-1',
       room: 'Salle 2',
     });
     expect(prisma.screening.update).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 'screening-1' }, data: { room: 'Salle 2' } }),
+      expect.objectContaining({
+        where: { id: 'screening-1' },
+        data: expect.objectContaining({ roomId: 'room-2' }),
+      }),
     );
   });
 
@@ -169,6 +225,12 @@ describe('AdminService', () => {
     expect(tx.reservationSeat.deleteMany).toHaveBeenCalledWith({
       where: { reservationId: 'r1' },
     });
+    expect(tx.ticket.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { status: 'CANCELLED' } }),
+    );
+    expect(tx.payment.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { status: 'REFUNDED' } }),
+    );
   });
 
   it('conserve les sièges lorsque le billet est utilisé', async () => {
@@ -178,6 +240,9 @@ describe('AdminService', () => {
     await service.updateReservation('r1', ReservationStatus.USED);
 
     expect(tx.reservationSeat.deleteMany).not.toHaveBeenCalled();
+    expect(tx.ticket.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'USED' }) }),
+    );
     expect(tx.reservation.update).toHaveBeenCalledWith({
       where: { id: 'r1' },
       data: { status: ReservationStatus.USED },

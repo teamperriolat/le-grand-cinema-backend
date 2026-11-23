@@ -22,11 +22,12 @@ async function main() {
     },
   });
   const startsAt = new Date(Date.now() + 2 * 86400000);
+  const room = await prisma.room.create({ data: { name: 'Salle 1', capacity: 30 } });
   await prisma.screening.create({
     data: {
       movieId: movie.id,
       startsAt,
-      room: 'Salle 1',
+      roomId: room.id,
       priceCents: 1200,
       seats: {
         create: Array.from({ length: 30 }, (_, i) => ({
